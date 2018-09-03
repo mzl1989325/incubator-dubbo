@@ -69,8 +69,18 @@ public class ExtensionLoader<T> {
 
     private static final Pattern NAME_SEPARATOR = Pattern.compile("\\s*[,]+\\s*");
 
+    /**
+     * 缓存
+     * key 拓展点接口
+     * value 加载拓展点的ExtensionLoader
+     */
     private static final ConcurrentMap<Class<?>, ExtensionLoader<?>> EXTENSION_LOADERS = new ConcurrentHashMap<Class<?>, ExtensionLoader<?>>();
 
+    /**
+     * 缓存
+     *
+     *
+     */
     private static final ConcurrentMap<Class<?>, Object> EXTENSION_INSTANCES = new ConcurrentHashMap<Class<?>, Object>();
 
     // ==============================
@@ -86,7 +96,16 @@ public class ExtensionLoader<T> {
     private final Map<String, Activate> cachedActivates = new ConcurrentHashMap<String, Activate>();
     private final ConcurrentMap<String, Holder<Object>> cachedInstances = new ConcurrentHashMap<String, Holder<Object>>();
     private final Holder<Object> cachedAdaptiveInstance = new Holder<Object>();
+
+    /**
+     * cachedAdaptiveClass 拓展点带@Adaptive注解的类
+     */
     private volatile Class<?> cachedAdaptiveClass = null;
+
+    /**
+     *  缺省的扩展的名称
+     *  例如 Commpiler 上的 @SPI("javassist")
+     */
     private String cachedDefaultName;
     private volatile Throwable createAdaptiveInstanceError;
 
