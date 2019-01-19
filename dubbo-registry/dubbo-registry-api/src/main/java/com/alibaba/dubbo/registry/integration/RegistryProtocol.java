@@ -50,6 +50,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RegistryProtocol implements Protocol {
 
     private final static Logger logger = LoggerFactory.getLogger(RegistryProtocol.class);
+
+    /**
+     *  单例 。在Dubbo SPI 中，被初始化，有且仅有一次。
+     */
     private static RegistryProtocol INSTANCE;
     private final Map<URL, NotifyListener> overrideListeners = new ConcurrentHashMap<URL, NotifyListener>();
     //用于解决rmi重复暴露端口冲突的问题，已经暴露过的服务不再重新暴露
@@ -151,15 +155,29 @@ public class RegistryProtocol implements Protocol {
         };
     }
 
+    /**
+     *  暴露服务
+     *
+     *  此处的local 指的是，本地启动服务，但是不包括向注册中心注册服务的意思
+     *
+     * @param originInvoker
+     * @param <T>
+     * @return
+     */
     @SuppressWarnings("unchecked")
     private <T> ExporterChangeableWrapper<T> doLocalExport(final Invoker<T> originInvoker) {
         String key = getCacheKey(originInvoker);
+        //从 bounds 获得 ,是不是已经暴露过服务
         ExporterChangeableWrapper<T> exporter = (ExporterChangeableWrapper<T>) bounds.get(key);
         if (exporter == null) {
             synchronized (bounds) {
                 exporter = (ExporterChangeableWrapper<T>) bounds.get(key);
+                // 未暴露过服务，进行暴露服务
                 if (exporter == null) {
+                    // 创建 Invoker Delegate 对象
                     final Invoker<?> invokerDelegete = new InvokerDelegete<T>(originInvoker, getProviderUrl(originInvoker));
+                    // 暴露服务 创建Export 对象
+                    // 使用 创建的Export对象 + originInvoker ,创建 ExporterChangeableWrapper
                     exporter = new ExporterChangeableWrapper<T>((Exporter<T>) protocol.export(invokerDelegete), originInvoker);
                     bounds.put(key, exporter);
                 }

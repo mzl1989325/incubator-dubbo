@@ -50,9 +50,24 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
 
     private static final long serialVersionUID = -1559314110797223229L;
 
+    /**
+     * 服务接口客户端本地代理类名，用于客户端执行本地逻辑，如本地缓存等。
+     * 该本地代理类的构造函数必须允许传入远程代理对象,构造函数如: public XxxServiceLocal(XxxService xxxService)
+     * 设为true，表示使用缺省代理类名,即：接口名+Local后缀
+     */
     // 服务接口的本地实现类名
     protected String local;
 
+    /**
+     * local stub class name for the service interface
+     * 服务接口客户端本地代理类名，用于在客户端执行本地逻辑，如本地缓存等。
+     *
+     * 该本地代理类的构造函数必须允许传入远程代理对象，构造函数如：public XxxServiceStub(XxxService xxxService)
+     *
+     * 设为 true，表示使用缺省代理类名，即：接口名 + Stub 后缀
+     *
+     * 参见文档 <a href="本地存根">https://dubbo.gitbooks.io/dubbo-user-book/demos/local-stub.html</>
+     */
     // 服务接口的本地实现类名
     protected String stub;
 
@@ -97,7 +112,14 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     // 服务暴露或引用的scope,如果为local，则表示只在当前JVM内查找.
     private String scope;
 
+
+    /**
+     * 校验 RegistryConfig 配置数组
+     * 实际上，该方法会初始化 RegistryConfig 的配置属性
+     */
     protected void checkRegistry() {
+
+        // 当RegistryConfig 对象数组为空时，若有 dubbo.registry.address 配置 进行创建
         // 兼容旧版本
         if (registries == null || registries.size() == 0) {
             String address = ConfigUtils.getProperty("dubbo.registry.address");
@@ -120,6 +142,8 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     + Version.getVersion()
                     + ", Please add <dubbo:registry address=\"...\" /> to your spring config. If you want unregister, please set <dubbo:service registry=\"N/A\" />");
         }
+
+        //读取变量和properties配置到ApplicationConfig对象
         for (RegistryConfig registryConfig : registries) {
             appendProperties(registryConfig);
         }
@@ -151,15 +175,22 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         }
     }
 
+    /**
+     * 加载拓展中心 URL数组
+     * @param provider
+     * @return
+     */
     protected List<URL> loadRegistries(boolean provider) {
         checkRegistry();
         List<URL> registryList = new ArrayList<URL>();
         if (registries != null && registries.size() > 0) {
             for (RegistryConfig config : registries) {
+                //获取注册中心的地址
                 String address = config.getAddress();
                 if (address == null || address.length() == 0) {
                     address = Constants.ANYHOST_VALUE;
                 }
+                // 从启动参数中获取
                 String sysaddress = System.getProperty("dubbo.registry.address");
                 if (sysaddress != null && sysaddress.length() > 0) {
                     address = sysaddress;
@@ -175,6 +206,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     if (ConfigUtils.getPid() > 0) {
                         map.put(Constants.PID_KEY, String.valueOf(ConfigUtils.getPid()));
                     }
+                    // 若不存在protocol参数，默认 dubbo 添加到 map 集合中
                     if (!map.containsKey("protocol")) {
                         if (ExtensionLoader.getExtensionLoader(RegistryFactory.class).hasExtension("remote")) {
                             map.put("protocol", "remote");
@@ -182,8 +214,16 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                             map.put("protocol", "dubbo");
                         }
                     }
+                    /**
+                     *  解析单个URL，将defaults里的参数，合并到address中
+                     *  合并的逻辑如下
+                     *  我们可以把 adress认为是url defaults 认为是defaultURL
+                     *  若url有不存在的属性时，从defaultURL获得对应的属性，设置到url中
+                     */
                     List<URL> urls = UrlUtils.parseURLs(address, map);
+                    //循环url 设置registry 和 protocol属性
                     for (URL url : urls) {
+                        //设置 gegistry=${protocol} 和 protocol=registry 到URL
                         url = url.addParameter(Constants.REGISTRY_KEY, url.getProtocol());
                         url = url.setProtocol(Constants.REGISTRY_PROTOCOL);
                         if ((provider && url.getParameter(Constants.REGISTER_KEY, true))
@@ -217,12 +257,15 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
             map.put(Constants.PID_KEY, String.valueOf(ConfigUtils.getPid()));
         }
         appendParameters(map, monitor);
+        //获得地址
         String address = monitor.getAddress();
         String sysaddress = System.getProperty("dubbo.monitor.address");
         if (sysaddress != null && sysaddress.length() > 0) {
             address = sysaddress;
         }
+        //直连监控中心服务器地址
         if (ConfigUtils.isNotEmpty(address)) {
+            // 若不存在protocol参数，默认dubbo追加到map集合中。
             if (!map.containsKey(Constants.PROTOCOL_KEY)) {
                 if (ExtensionLoader.getExtensionLoader(MonitorFactory.class).hasExtension("logstat")) {
                     map.put(Constants.PROTOCOL_KEY, "logstat");
@@ -230,7 +273,9 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     map.put(Constants.PROTOCOL_KEY, "dubbo");
                 }
             }
+            //解析地址，创建 Dubbo Url
             return UrlUtils.parseURL(address, map);
+          //从注册中心发现监控中心地址
         } else if (Constants.REGISTRY_PROTOCOL.equals(monitor.getProtocol()) && registryURL != null) {
             return registryURL.setProtocol("dubbo").addParameter(Constants.PROTOCOL_KEY, "registry").addParameterAndEncoded(Constants.REFER_KEY, StringUtils.toQueryString(map));
         }

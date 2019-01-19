@@ -97,28 +97,39 @@ public abstract class AbstractConfig implements Serializable {
         return value;
     }
 
+    /**
+     * 读取启动参数变量和properties配置到配置对象
+     * 覆盖优先级为 启动参数变量>xml配置>properties 配置
+     * @param config
+     */
     protected static void appendProperties(AbstractConfig config) {
         if (config == null) {
             return;
         }
         String prefix = "dubbo." + getTagName(config.getClass()) + ".";
+        //config.getClass=ServiceConfig
         Method[] methods = config.getClass().getMethods();
         for (Method method : methods) {
             try {
                 String name = method.getName();
                 if (name.length() > 3 && name.startsWith("set") && Modifier.isPublic(method.getModifiers())
                         && method.getParameterTypes().length == 1 && isPrimitive(method.getParameterTypes()[0])) {
+                    // 获得属性名 例如ApplicationConfig.setName(...) 对应的属性名为name
                     String property = StringUtils.camelToSplitName(name.substring(3, 4).toLowerCase() + name.substring(4), "-");
 
+                    // [启动参数变量] 优先从带有 config#id 的配置中获取，例如:dubbo.application.demo-provider.name
                     String value = null;
                     if (config.getId() != null && config.getId().length() > 0) {
+                        //带有 config#id
                         String pn = prefix + config.getId() + "." + property;
                         value = System.getProperty(pn);
                         if (!StringUtils.isBlank(value)) {
                             logger.info("Use System Property " + pn + " to config dubbo");
                         }
                     }
+                    // [启动参数获取不到] config#id的配置中获取 例如 dubbo.application.name
                     if (value == null || value.length() == 0) {
+                        //不带 config#id
                         String pn = prefix + property;
                         value = System.getProperty(pn);
                         if (!StringUtils.isBlank(value)) {
@@ -126,6 +137,7 @@ public abstract class AbstractConfig implements Serializable {
                         }
                     }
                     if (value == null || value.length() == 0) {
+                        // 覆盖优先级为 启动参数变量>xml配置>properties 配置 因此需要使用getter判断xml是否已经配置
                         Method getter;
                         try {
                             getter = config.getClass().getMethod("get" + name.substring(3), new Class<?>[0]);

@@ -40,7 +40,8 @@ public class Main {
 
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
-    private static final ExtensionLoader<Container> loader = ExtensionLoader.getExtensionLoader(Container.class);
+    private static final ExtensionLoader<Container> loader = ExtensionLoader.
+            getExtensionLoader(Container.class);
 
     private static volatile boolean running = true;
 
